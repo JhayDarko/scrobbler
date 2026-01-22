@@ -13,7 +13,7 @@ import id.flutter.flutter_background_service.BackgroundService
 /**
  * Watchdog (Perro guardián) que verifica periódicamente si el BackgroundService está corriendo.
  * 
- * Se ejecuta cada 15 minutos mediante AlarmManager (manejado por el sistema operativo).
+ * Se ejecuta cada 5 minutos mediante AlarmManager (manejado por el sistema operativo).
  * Si detecta que el BackgroundService no está corriendo, lo reinicia automáticamente.
  * 
  * Este mecanismo sobrevive a "Clear All" porque AlarmManager es independiente del proceso de la app.
@@ -21,7 +21,7 @@ import id.flutter.flutter_background_service.BackgroundService
 class WatchdogReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "WatchdogReceiver"
-        private const val CHECK_INTERVAL_MS = 15 * 60 * 1000L // 15 minutos
+        private const val CHECK_INTERVAL_MS = 5 * 60 * 1000L // 5 minutos (más agresivo)
         
         /**
          * Programa el próximo check del watchdog
@@ -53,7 +53,7 @@ class WatchdogReceiver : BroadcastReceiver() {
                 )
             }
             
-            Log.d(TAG, "⏰ Próximo watchdog check programado en 15 minutos")
+            Log.d(TAG, "⏰ Próximo watchdog check programado en 5 minutos")
         }
     }
     

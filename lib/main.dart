@@ -14,15 +14,15 @@ import 'package:scrobbler/services/service_initializer.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:scrobbler/config/app_config.dart';
 
 // Esta es la función que se ejecuta en el "limbo" de Android para Workmanager
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     await Supabase.initialize(
-      url: 'https://uimgfmkfiikhsemgbgva.supabase.co',
-      anonKey:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpbWdmbWtmaWlraHNlbWdiZ3ZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NTk5NzEsImV4cCI6MjA4NDQzNTk3MX0.lv4iIntC7cpOq8DAbMp_4T507M-5WqV2oOv6cUHFZP8',
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
     );
 
     await SyncService().syncData();
@@ -32,24 +32,23 @@ void callbackDispatcher() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Inicializar servicio en background PASANDO la función onStart
   await initializeService(onStart);
 
   await Supabase.initialize(
-    url: 'https://uimgfmkfiikhsemgbgva.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpbWdmbWtmaWlraHNlbWdiZ3ZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NTk5NzEsImV4cCI6MjA4NDQzNTk3MX0.lv4iIntC7cpOq8DAbMp_4T507M-5WqV2oOv6cUHFZP8',
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
   );
 
   // Inicializar Workmanager
-  Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  Workmanager().initialize(callbackDispatcher);
 
   // Registrar tarea periódica (cada 15 min mínimo por Android)
   Workmanager().registerPeriodicTask(
     "1",
     "syncTask",
-    frequency: const Duration(minutes: 15),
+    frequency: Duration(minutes: AppConfig.syncIntervalMinutes),
     constraints: Constraints(networkType: NetworkType.connected),
   );
 
@@ -118,7 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _checkServiceStatus() async {
     try {
-      final hasPermission = await NativeNotificationService.isPermissionGranted();
+      final hasPermission =
+          await NativeNotificationService.isPermissionGranted();
       if (mounted && _isServiceEnabled != hasPermission) {
         setState(() => _isServiceEnabled = hasPermission);
       }
@@ -146,7 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                result.success ? '✅ ${result.message}' : '❌ ${result.message}'),
+              result.success ? '✅ ${result.message}' : '❌ ${result.message}',
+            ),
             backgroundColor: result.success ? Colors.green : Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -157,10 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -171,9 +169,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openSettings() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const SettingsPage()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const SettingsPage()));
   }
 
   @override
@@ -270,9 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ? 'Reproduce música en YouTube Music\npara comenzar a registrar scrobbles'
                                 : 'Activa el servicio en Configuración\ny luego reproduce música',
                             textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: Theme.of(context).colorScheme.outline,
                                 ),
@@ -302,9 +298,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       final scrobble = scrobbles[index];
                       return Card(
                         elevation: 0,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         margin: const EdgeInsets.only(bottom: 10),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
@@ -315,10 +311,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             vertical: 10,
                           ),
                           leading: CircleAvatar(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            child: const Icon(Icons.music_note,
-                                color: Colors.white),
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            child: const Icon(
+                              Icons.music_note,
+                              color: Colors.white,
+                            ),
                           ),
                           title: Text(
                             scrobble.track,
@@ -378,9 +377,8 @@ void onStart(ServiceInstance service) async {
   // CRÍTICO: Inicializar Supabase en este isolate
   // ScrobbleService -> SyncService necesita Supabase.instance
   await Supabase.initialize(
-    url: 'https://uimgfmkfiikhsemgbgva.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpbWdmbWtmaWlraHNlbWdiZ3ZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NTk5NzEsImV4cCI6MjA4NDQzNTk3MX0.lv4iIntC7cpOq8DAbMp_4T507M-5WqV2oOv6cUHFZP8',
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
   );
 
   // Inicialización de notificaciones para el Foreground Service
@@ -396,14 +394,15 @@ void onStart(ServiceInstance service) async {
 
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
+        AndroidFlutterLocalNotificationsPlugin
+      >()
       ?.createNotificationChannel(channel);
 
   print('🚀 BACKGROUND SERVICE: Iniciando lógica (Supabase OK)...');
-  
+
   // Instancia del servicio de lógica
   final scrobbleLogic = BackgroundScrobbleLogic();
-  
+
   // Timer principal: Revisa la cola cada 2 segundos
   Timer.periodic(const Duration(seconds: 2), (timer) async {
     await scrobbleLogic.processQueue();
@@ -412,7 +411,7 @@ void onStart(ServiceInstance service) async {
 
 class BackgroundScrobbleLogic {
   final ScrobbleService _scrobbleService = ScrobbleService();
-  
+
   BackgroundScrobbleLogic() {
     print('📦 BackgroundLogic: Constructor');
     _scrobbleService.initDB();
@@ -423,24 +422,24 @@ class BackgroundScrobbleLogic {
     await prefs.reload(); // FORZAMOS RECARGA
 
     final String? rawQueue = prefs.getString('scrobble_queue');
-    
+
     if (rawQueue != null && rawQueue != "[]") {
-       print('📥 COLA ENCONTRADA (Raw): $rawQueue');
-       
-       try {
-          final List<dynamic> queue = jsonDecode(rawQueue);
-          if (queue.isNotEmpty) {
-             print('🔄 Procesando ${queue.length} items...');
-             for (var item in queue) {
-                _scrobbleService.processBackgroundEvent(item);
-             }
-             await prefs.setString('scrobble_queue', "[]");
-             print('🗑️ Cola vaciada.');
+      print('📥 COLA ENCONTRADA (Raw): $rawQueue');
+
+      try {
+        final List<dynamic> queue = jsonDecode(rawQueue);
+        if (queue.isNotEmpty) {
+          print('🔄 Procesando ${queue.length} items...');
+          for (var item in queue) {
+            _scrobbleService.processBackgroundEvent(item);
           }
-       } catch (e) {
-          print('❌ Error decode JSON: $e');
           await prefs.setString('scrobble_queue', "[]");
-       }
+          print('🗑️ Cola vaciada.');
+        }
+      } catch (e) {
+        print('❌ Error decode JSON: $e');
+        await prefs.setString('scrobble_queue', "[]");
+      }
     }
   }
 }

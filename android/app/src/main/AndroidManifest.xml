@@ -41,6 +41,8 @@
             android:foregroundServiceType="dataSync"
             android:exported="true"
             android:stopWithTask="false"
+            android:enabled="true"
+            android:directBootAware="true"
             />
         
         <!-- Servicio nativo para reiniciar después de Clear All -->

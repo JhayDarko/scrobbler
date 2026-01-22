@@ -35,7 +35,7 @@ class DBHelper {
         UNIQUE(track, artist, timestamp)
       )
     ''');
-    
+
     // Crear índices para mejorar performance
     await db.execute('CREATE INDEX idx_is_synced ON scrobbles(is_synced)');
     await db.execute('CREATE INDEX idx_timestamp ON scrobbles(timestamp DESC)');
@@ -59,16 +59,39 @@ class DBHelper {
     }
   }
 
-  /// Insertar nuevo scrobble (previene duplicados)
+  /// Insertar nuevo scrobble con prevención inteligente de duplicados
   Future<int> insertScrobble(Scrobble scrobble) async {
     final dbClient = await db;
-    // Usamos CONFLICT_REPLACE para simplificar actualizaciones si el ID coincide,
-    // pero para la lógica de duración usamos update específico con ID.
-    return await dbClient.insert(
-      'scrobbles',
-      scrobble.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    
+    try {
+      // Verificar duplicados recientes (últimos 2 minutos)
+      final twoMinutesAgo = DateTime.now().subtract(const Duration(minutes: 2));
+      final recentDuplicates = await dbClient.query(
+        'scrobbles',
+        where: 'track = ? AND artist = ? AND timestamp >= ?',
+        whereArgs: [
+          scrobble.track,
+          scrobble.artist,
+          twoMinutesAgo.toIso8601String(),
+        ],
+        limit: 1,
+      );
+      
+      if (recentDuplicates.isNotEmpty) {
+        print('🚫 Scrobble duplicado detectado, ignorando');
+        return 0; // Retornar 0 para indicar que fue ignorado
+      }
+      
+      // Insertar con manejo de conflictos
+      return await dbClient.insert(
+        'scrobbles',
+        scrobble.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.ignore, // Ignorar si hay conflicto UNIQUE
+      );
+    } catch (e) {
+      print('❌ Error insertando scrobble: $e');
+      return 0;
+    }
   }
 
   Future<void> updateScrobbleDuration(int id, int newDuration) async {
@@ -137,11 +160,43 @@ class DBHelper {
   Future<int> getScrobbleCount() async {
     try {
       final dbClient = await db;
-      final result = await dbClient.rawQuery('SELECT COUNT(*) as count FROM scrobbles');
+      final result = await dbClient.rawQuery(
+        'SELECT COUNT(*) as count FROM scrobbles',
+      );
       return Sqflite.firstIntValue(result) ?? 0;
     } catch (e) {
       print('❌ Error contando scrobbles: $e');
       return 0;
+    }
+  }
+
+  /// Verificar si existe un scrobble duplicado reciente
+  Future<bool> isDuplicate(
+    String track,
+    String artist,
+    DateTime timestamp,
+  ) async {
+    try {
+      final dbClient = await db;
+      final windowStart = timestamp.subtract(const Duration(minutes: 2));
+      final windowEnd = timestamp.add(const Duration(minutes: 2));
+      
+      final result = await dbClient.query(
+        'scrobbles',
+        where: 'track = ? AND artist = ? AND timestamp >= ? AND timestamp <= ?',
+        whereArgs: [
+          track,
+          artist,
+          windowStart.toIso8601String(),
+          windowEnd.toIso8601String(),
+        ],
+        limit: 1,
+      );
+      
+      return result.isNotEmpty;
+    } catch (e) {
+      print('❌ Error verificando duplicado: $e');
+      return false;
     }
   }
 

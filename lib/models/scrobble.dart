@@ -2,7 +2,7 @@ class Scrobble {
   final int? id;
   final String track;
   final String artist;
-  final String album;
+  final String? album; // Ahora nullable - no guardar strings vacíos
   final int duration; // en milisegundos
   final DateTime timestamp;
   final int isSynced;
@@ -11,7 +11,7 @@ class Scrobble {
     this.id,
     required this.track,
     required this.artist,
-    required this.album,
+    this.album, // Ahora opcional
     required this.duration,
     required this.timestamp,
     this.isSynced = 0,
@@ -22,7 +22,7 @@ class Scrobble {
     return {
       'track': track,
       'artist': artist,
-      'album': album,
+      'album': album ?? '', // Solo guardar vacío si es null
       'duration': duration,
       'timestamp': timestamp.toIso8601String(),
       'is_synced': isSynced,
@@ -31,11 +31,12 @@ class Scrobble {
 
   // Crear instancia desde Map de DB
   factory Scrobble.fromMap(Map<String, dynamic> map) {
+    final albumValue = map['album'] as String?;
     return Scrobble(
       id: map['id'] as int?,
       track: map['track'] as String,
       artist: map['artist'] as String,
-      album: map['album'] as String,
+      album: (albumValue == null || albumValue.isEmpty) ? null : albumValue,
       duration: map['duration'] as int,
       timestamp: DateTime.parse(map['timestamp'] as String),
       isSynced: map['is_synced'] as int,
@@ -74,6 +75,6 @@ class Scrobble {
 
   @override
   String toString() {
-    return 'Scrobble(id: $id, track: $track, artist: $artist, album: $album, duration: $formattedDuration, synced: ${isSynced == 1})';
+    return 'Scrobble(id: $id, track: $track, artist: $artist, album: ${album ?? "(sin álbum)"}, duration: $formattedDuration, synced: ${isSynced == 1})';
   }
 }

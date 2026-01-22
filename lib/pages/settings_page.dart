@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/scrobble_service.dart'; // Para NativeNotificationService
+import 'diagnostic_page.dart'; // Para diagnóstico de Supabase
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -20,9 +21,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _checkServiceStatus() async {
     setState(() => _isChecking = true);
-    
+
     try {
-      final hasPermission = await NativeNotificationService.isPermissionGranted();
+      final hasPermission =
+          await NativeNotificationService.isPermissionGranted();
       setState(() {
         _isServiceEnabled = hasPermission;
         _isChecking = false;
@@ -50,10 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configuración'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Configuración'), centerTitle: true),
       body: _isChecking
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -62,8 +61,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 // Estado del servicio
                 Card(
                   color: _isServiceEnabled
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.red.withOpacity(0.1),
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -80,7 +79,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           _isServiceEnabled
                               ? '✅ Servicio Activo'
                               : '❌ Servicio Inactivo',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: _isServiceEnabled
                                     ? Colors.green
@@ -102,13 +102,33 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 const SizedBox(height: 24),
 
+                // Botón de diagnóstico de Supabase
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.medical_services),
+                    title: const Text('Diagnóstico de Supabase'),
+                    subtitle: const Text('Verificar sincronización y permisos'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DiagnosticPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
                 // Instrucciones paso a paso
                 if (!_isServiceEnabled) ...[
                   Text(
                     'Cómo activar el servicio',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _buildStep(
@@ -184,12 +204,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             const SizedBox(width: 8),
                             Text(
                               'Información importante',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -236,16 +252,16 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
                 description,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
